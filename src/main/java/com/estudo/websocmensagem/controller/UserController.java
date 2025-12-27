@@ -27,7 +27,7 @@ public class UserController {
     }
 
     @Transactional
-    @PostMapping("/users")
+    @PostMapping("/register")
     public ResponseEntity<Void> createUser(@RequestBody UserCreate dto) {
 
         if (userRepo.findByUsername(dto.username()) != null) {
