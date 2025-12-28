@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste WebSocket Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .section {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .messages {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        .message-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+        .message-time {
+            font-size: 12px;
+            color: #999;
+        }
+        .hidden {
+            display: none;
+        }
+        .token-display {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .inline-group {
+            display: flex;
+            gap: 10px;
+        }
+        .inline-group .form-group {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Teste WebSocket + JWT</h1>
+        </div>
+
+        <!-- Seção de Login -->
+        <div class="section" id="loginSection">
+            <h2>1. Login</h2>
+            <div class="form-group">
+                <label for="username">Usuário:</label>
+                <input type="text" id="username" placeholder="Digite seu usuário" value="testuser">
+            </div>
+            <div class="form-group">
+                <label for="password">Senha:</label>
+                <input type="password" id="password" placeholder="Digite sua senha" value="password123">
+            </div>
+            <button onclick="login()">Fazer Login</button>
+            <div id="loginStatus"></div>
+            <div id="tokenDisplay" class="token-display hidden"></div>
+        </div>
+
+        <!-- Seção de Conexão WebSocket -->
+        <div class="section" id="wsSection">
+            <h2>2. Conectar WebSocket</h2>
+            <button onclick="connectWebSocket()" id="connectBtn" disabled>Conectar WebSocket</button>
+            <button onclick="disconnectWebSocket()" id="disconnectBtn" class="hidden">Desconectar</button>
+            <div id="wsStatus"></div>
+        </div>
+
+        <!-- Seção de Envio de Mensagem -->
+        <div class="section" id="messageSection">
+            <h2>3. Enviar Mensagem</h2>
+            <div class="inline-group">
+                <div class="form-group">
+                    <label for="recipientId">ID do Destinatário:</label>
+                    <input type="number" id="recipientId" placeholder="ID do usuário" value="2">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="messageContent">Mensagem:</label>
+                <textarea id="messageContent" rows="3" placeholder="Digite sua mensagem">Olá! Esta é uma mensagem de teste.</textarea>
+            </div>
+            <button onclick="sendMessage()" id="sendBtn" disabled>Enviar Mensagem</button>
+            <div id="messageStatus"></div>
+        </div>
+
+        <!-- Seção de Mensagens Recebidas -->
+        <div class="section">
+            <h2>4. Mensagens Recebidas</h2>
+            <div class="messages" id="messagesContainer">
+                <p style="color: #999; text-align: center;">Aguardando mensagens...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let jwtToken = null;
+        let stompClient = null;
+        let currentUserId = null;
+
+        const API_URL = 'http://localhost:8080';
+
+        // Função de Login
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const statusDiv = document.getElementById('loginStatus');
+            const tokenDiv = document.getElementById('tokenDisplay');
+
+            statusDiv.innerHTML = '<div class="status info">Fazendo login...</div>';
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    jwtToken = data.token;
+                    
+                    // Decodificar o token para pegar o userId (se estiver no payload)
+                    const tokenPayload = JSON.parse(atob(jwtToken.split('.')[1]));
+                    currentUserId = tokenPayload.userId || tokenPayload.sub;
+                    
+                    statusDiv.innerHTML = `<div class="status success">✅ Login realizado com sucesso!<br>Usuário: ${username}</div>`;
+                    tokenDiv.className = 'token-display';
+                    tokenDiv.innerHTML = `<strong>Token JWT:</strong><br>${jwtToken}`;
+                    
+                    document.getElementById('connectBtn').disabled = false;
+                } else {
+                    statusDiv.innerHTML = '<div class="status error">❌ Falha no login. Verifique suas credenciais.</div>';
+                    jwtToken = null;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Erro: ${error.message}</div>`;
+                console.error('Erro no login:', error);
+            }
+        }
+
+        // Conectar ao WebSocket
+        function connectWebSocket() {
+            if (!jwtToken) {
+                alert('Faça login primeiro!');
+                return;
+            }
+
+            const statusDiv = document.getElementById('wsStatus');
+            statusDiv.innerHTML = '<div class="status info">Conectando ao WebSocket...</div>';
+
+            try {
+                const socket = new SockJS(`${API_URL}/ws-message`);
+                stompClient = Stomp.over(socket);
+
+                // Enviar JWT via STOMP headers (não HTTP headers)
+                const stompHeaders = {
+                    'Authorization': `Bearer ${jwtToken}`
+                };
+
+                stompClient.connect(stompHeaders, function(frame) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Conectado ao WebSocket!</div>';
+                    console.log('Conectado:', frame);
+
+                    document.getElementById('connectBtn').classList.add('hidden');
+                    document.getElementById('disconnectBtn').classList.remove('hidden');
+                    document.getElementById('sendBtn').disabled = false;
+
+                    // Inscrever-se para receber mensagens
+                    stompClient.subscribe('/user/queue/messages', function(message) {
+                        displayReceivedMessage(JSON.parse(message.body));
+                    });
+
+                }, function(error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Erro na conexão: ${error}</div>`;
+                    console.error('Erro na conexão:', error);
+                });
+
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Erro: ${error.message}</div>`;
+                console.error('Erro:', error);
+            }
+        }
+
+        // Desconectar do WebSocket
+        function disconnectWebSocket() {
+            if (stompClient) {
+                stompClient.disconnect();
+                document.getElementById('wsStatus').innerHTML = '<div class="status info">Desconectado</div>';
+                document.getElementById('connectBtn').classList.remove('hidden');
+                document.getElementById('disconnectBtn').classList.add('hidden');
+                document.getElementById('sendBtn').disabled = true;
+            }
+        }
+
+        // Enviar Mensagem
+        function sendMessage() {
+            const recipientId = document.getElementById('recipientId').value;
+            const content = document.getElementById('messageContent').value;
+            const statusDiv = document.getElementById('messageStatus');
+
+            if (!recipientId || !content) {
+                statusDiv.innerHTML = '<div class="status error">❌ Preencha todos os campos!</div>';
+                return;
+            }
+
+            if (!stompClient || !stompClient.connected) {
+                statusDiv.innerHTML = '<div class="status error">❌ WebSocket não está conectado!</div>';
+                return;
+            }
+
+            const message = {
+                recipientId: parseInt(recipientId),
+                content: content
+            };
+
+            try {
+                stompClient.send('/app/message', {}, JSON.stringify(message));
+                statusDiv.innerHTML = '<div class="status success">✅ Mensagem enviada!</div>';
+                
+                // Limpar o campo de mensagem
+                document.getElementById('messageContent').value = '';
+                
+                setTimeout(() => {
+                    statusDiv.innerHTML = '';
+                }, 3000);
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Erro ao enviar: ${error.message}</div>`;
+                console.error('Erro ao enviar mensagem:', error);
+            }
+        }
+
+        // Exibir mensagem recebida
+        function displayReceivedMessage(message) {
+            const container = document.getElementById('messagesContainer');
+            
+            // Remover mensagem de "aguardando" se existir
+            if (container.querySelector('p')) {
+                container.innerHTML = '';
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-item';
+            
+            const time = message.createdAt ? new Date(message.createdAt).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+            
+            // Campos do MessageResponse DTO
+            messageDiv.innerHTML = `
+                <div><strong>De:</strong> ${message.senderUsername || 'Desconhecido'} (ID: ${message.senderId})</div>
+                <div><strong>Para:</strong> ${message.recipientUsername || 'Desconhecido'} (ID: ${message.recipientId})</div>
+                <div><strong>Mensagem:</strong> ${message.content}</div>
+                <div class="message-time">${time}</div>
+            `;
+            
+            container.insertBefore(messageDiv, container.firstChild);
+        }
+
+        // Permitir envio com Enter (opcional)
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+
+        document.getElementById('messageContent').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
