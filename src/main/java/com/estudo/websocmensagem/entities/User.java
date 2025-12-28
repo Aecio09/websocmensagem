@@ -5,6 +5,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Getter
 @Setter
 @Entity
@@ -17,6 +20,11 @@ public class User {
 
     @Column(nullable = false, unique = true)
     private String username;
-
+    @Column(nullable = false)
     private String password;
+
+    @OneToMany(mappedBy = "senderBy", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(nullable = true)
+    private List<Message> messages = new ArrayList<>();
+
 }
