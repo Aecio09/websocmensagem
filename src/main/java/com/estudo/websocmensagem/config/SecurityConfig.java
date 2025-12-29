@@ -18,6 +18,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -47,10 +49,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/login", "/register", "/ws-message/**", "/users").permitAll()
+                        .requestMatchers("/login", "/register", "/ws-message/**").permitAll()
+                        .requestMatchers("/users").hasAuthority("adm")
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
+                        jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
+                ))
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
@@ -89,4 +94,14 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtGrantedAuthoritiesConverter jwtGranteAuthority = new JwtGrantedAuthoritiesConverter();
+        jwtGranteAuthority.setAuthorityPrefix("");
+        jwtGranteAuthority.setAuthoritiesClaimName("scope");
+
+        JwtAuthenticationConverter jwtAuthConverter = new JwtAuthenticationConverter();
+        jwtAuthConverter.setJwtGrantedAuthoritiesConverter(jwtGranteAuthority);
+        return jwtAuthConverter;
+    }
 }

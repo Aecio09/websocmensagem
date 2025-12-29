@@ -2,6 +2,7 @@ package com.estudo.websocmensagem.controller;
 
 import com.estudo.websocmensagem.controller.dto.LoginRequest;
 import com.estudo.websocmensagem.controller.dto.LoginResponse;
+import com.estudo.websocmensagem.entities.Role;
 import com.estudo.websocmensagem.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 @RestController
 public class JwtController {
@@ -34,6 +36,7 @@ public class JwtController {
         }
         var now = Instant.now();
         var expiresAt = 36000L;
+        var roles = user.getRoles().stream().map(Role::getName).collect(Collectors.toSet());
 
         var claims = JwtClaimsSet.builder()
                 .issuer("estudo-websoc-mensagem")
@@ -41,6 +44,7 @@ public class JwtController {
                 .expiresAt(now.plusSeconds(expiresAt))
                 .subject(user.getUsername())
                 .claim("username", user.getUsername())
+                .claim("scope", String.join(" ", roles))
                 .build();
 
         var jwtValue = encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
