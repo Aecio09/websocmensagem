@@ -50,7 +50,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/login", "/register", "/ws-message/**").permitAll()
-                        .requestMatchers("/users").hasAuthority("adm")
+                        .requestMatchers("/users", "/delete-user/**", "/edit-user/**").hasAuthority("adm")
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->

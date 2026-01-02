@@ -13,4 +13,6 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findBySenderBy(User senderBy);
 
     List<Message> findByRecipientBy(User recipientBy);
+
+    List<Message> findConversationsBy(User senderBy, User recipientBy);
 }

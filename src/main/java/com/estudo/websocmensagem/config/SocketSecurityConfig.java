@@ -31,13 +31,12 @@ public class SocketSecurityConfig {
         return messages.build();
     }
 
-    // Desabilita CSRF para WebSocket retornando um interceptor que não faz nada
     @Bean("csrfChannelInterceptor")
     public ChannelInterceptor csrfChannelInterceptor() {
         return new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
-                return message; // Permite todas as mensagens sem validação CSRF
+                return message;
             }
         };
     }

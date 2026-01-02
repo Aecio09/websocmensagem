@@ -2,6 +2,8 @@ package com.estudo.websocmensagem.controller;
 
 
 import com.estudo.websocmensagem.controller.dto.UserCreate;
+import com.estudo.websocmensagem.controller.dto.UserResponse;
+import com.estudo.websocmensagem.entities.Role;
 import com.estudo.websocmensagem.entities.User;
 import com.estudo.websocmensagem.repository.MessageRepository;
 import com.estudo.websocmensagem.repository.RoleRepository;
@@ -47,18 +49,53 @@ public class UserController {
         userRepo.save(user);
         return ResponseEntity.status(201).build();
     }
+//    @GetMapping("/users")
+//    @PreAuthorize("hasAuthority('adm')")
+//    public ResponseEntity<List<User>> listUsers() {
+//        List<User> users = userRepo.findAll();
+//        return ResponseEntity.ok(users);
+//    }
+
+
     @GetMapping("/users")
     @PreAuthorize("hasAuthority('adm')")
-    public ResponseEntity<List<User>> listUsers() {
+    public ResponseEntity<List<UserResponse>> listUsers() {
         List<User> users = userRepo.findAll();
-        return ResponseEntity.ok(users);
+        List<UserResponse> userResponses = users.stream()
+                .map(user -> new UserResponse(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getRoles().stream().map(Role::getName).toList()
+                ))
+                .toList();
+        return ResponseEntity.ok().body(userResponses);
     }
 
     @GetMapping("/users/{id}")
-    @PreAuthorize("hasAuthority('adm')")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
         User user = userRepo.findById(id).orElseThrow();
         return ResponseEntity.ok(user);
+    }
+//    @GetMapping("/users/username/{username}")
+//    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
+//        User user = userRepo.findByUsername(username);
+//        if (user == null) {
+//            return ResponseEntity.notFound().build();
+//        }
+//        return ResponseEntity.ok(user);
+//    }
+    @GetMapping("/users/username/{username}")
+    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable String username) {
+        User user = userRepo.findByUsername(username);
+        if (user == null) {
+            return ResponseEntity.notFound().build();
+        }
+        UserResponse userResponse = new UserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getRoles().stream().map(Role::getName).toList()
+        );
+        return ResponseEntity.ok(userResponse);
     }
 
     @PutMapping("/edit-user/{id}")

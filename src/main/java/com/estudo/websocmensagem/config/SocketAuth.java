@@ -54,7 +54,12 @@ public class SocketAuth implements ChannelInterceptor {
                                     user,
                                     null,
                                     null
-                            );
+                            ) {
+                                @Override
+                                public String getName() {
+                                    return user.getUsername();
+                                }
+                            };
 
                     accessor.setUser(authentication);
                     System.out.println("Authentication set successfully");
