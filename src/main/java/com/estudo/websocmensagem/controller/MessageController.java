@@ -10,10 +10,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -58,12 +61,19 @@ public class MessageController {
                 "/queue/messages",
                 response);
     }
+
+
+    //esse metodo tem um grande potencial problematico caso o numero de mensagens seja muito grande o json vai se gigante e vai travar tudo
     @GetMapping("/messages/{id}")
-    public ResponseEntity<List<MessageResponse>> getMessages(@PathVariable Long id, @AuthenticationPrincipal User user) {
+    @ResponseBody
+    public ResponseEntity<List<MessageResponse>> getMessages(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+        String username = jwt.getSubject();
+        User currentUser = userRepo.findByUsername(username);
+
         User otherUser = userRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<Message> messages = mRepo.findConversationsBy(user, otherUser);
+        List<Message> messages = mRepo.findConversationsBy(currentUser, otherUser);
 
         List<MessageResponse> response = messages.stream().map(message -> new MessageResponse(
                 message.getId(),

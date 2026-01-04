@@ -76,14 +76,6 @@ public class UserController {
         User user = userRepo.findById(id).orElseThrow();
         return ResponseEntity.ok(user);
     }
-//    @GetMapping("/users/username/{username}")
-//    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-//        User user = userRepo.findByUsername(username);
-//        if (user == null) {
-//            return ResponseEntity.notFound().build();
-//        }
-//        return ResponseEntity.ok(user);
-//    }
     @GetMapping("/users/username/{username}")
     public ResponseEntity<UserResponse> getUserByUsername(@PathVariable String username) {
         User user = userRepo.findByUsername(username);

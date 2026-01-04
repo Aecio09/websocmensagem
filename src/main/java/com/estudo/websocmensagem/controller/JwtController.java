@@ -43,6 +43,7 @@ public class JwtController {
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(expiresAt))
                 .subject(user.getUsername())
+                .claim("userId", user.getId())
                 .claim("username", user.getUsername())
                 .claim("scope", String.join(" ", roles))
                 .build();

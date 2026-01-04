@@ -29,8 +29,6 @@ public class SocketAuth implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authToken = accessor.getFirstNativeHeader("Authorization");
             
-            System.out.println("=== WebSocket CONNECT ===");
-            System.out.println("Authorization header: " + authToken);
 
             if (authToken != null && authToken.startsWith("Bearer ")) {
                 String token = authToken.substring(7);
@@ -39,15 +37,11 @@ public class SocketAuth implements ChannelInterceptor {
                     Jwt jwt = jwtDecoder.decode(token);
                     String username = jwt.getClaimAsString("sub");
                     
-                    System.out.println("JWT decoded successfully. Username: " + username);
                     
                     User user = userRepository.findByUsername(username);
                     if (user == null) {
-                        System.err.println("User not found: " + username);
                         throw new RuntimeException("User not found: " + username);
                     }
-
-                    System.out.println("User found: " + user.getUsername() + " (ID: " + user.getId() + ")");
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
@@ -62,14 +56,11 @@ public class SocketAuth implements ChannelInterceptor {
                             };
 
                     accessor.setUser(authentication);
-                    System.out.println("Authentication set successfully");
                 } catch (Exception e) {
-                    System.err.println("JWT authentication error: " + e.getMessage());
-                    e.printStackTrace();
                     throw new RuntimeException("Invalid JWT token: " + e.getMessage());
                 }
             } else {
-                System.err.println("No valid Authorization header found");
+                throw new RuntimeException("Missing or invalid Authorization header");
             }
         }
 
