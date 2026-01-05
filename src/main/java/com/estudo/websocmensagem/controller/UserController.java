@@ -3,6 +3,7 @@ package com.estudo.websocmensagem.controller;
 
 import com.estudo.websocmensagem.controller.dto.UserCreate;
 import com.estudo.websocmensagem.controller.dto.UserResponse;
+import com.estudo.websocmensagem.controller.dto.UserResponseForusr;
 import com.estudo.websocmensagem.entities.Role;
 import com.estudo.websocmensagem.entities.User;
 import com.estudo.websocmensagem.repository.MessageRepository;
@@ -49,13 +50,6 @@ public class UserController {
         userRepo.save(user);
         return ResponseEntity.status(201).build();
     }
-//    @GetMapping("/users")
-//    @PreAuthorize("hasAuthority('adm')")
-//    public ResponseEntity<List<User>> listUsers() {
-//        List<User> users = userRepo.findAll();
-//        return ResponseEntity.ok(users);
-//    }
-
 
     @GetMapping("/users")
     @PreAuthorize("hasAuthority('adm')")
@@ -70,28 +64,21 @@ public class UserController {
                 .toList();
         return ResponseEntity.ok().body(userResponses);
     }
-
-    @GetMapping("/users/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        User user = userRepo.findById(id).orElseThrow();
-        return ResponseEntity.ok(user);
-    }
     @GetMapping("/users/username/{username}")
-    public ResponseEntity<UserResponse> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<UserResponseForusr> getUserByUsername(@PathVariable String username) {
         User user = userRepo.findByUsername(username);
         if (user == null) {
             return ResponseEntity.notFound().build();
         }
-        UserResponse userResponse = new UserResponse(
+        UserResponseForusr userResponse = new UserResponseForusr(
                 user.getId(),
-                user.getUsername(),
-                user.getRoles().stream().map(Role::getName).toList()
+                user.getUsername()
         );
         return ResponseEntity.ok(userResponse);
     }
 
     @PutMapping("/edit-user/{id}")
-    @PreAuthorize("hasAuthority('adm')")
+    @PreAuthorize("#id.equals(authentication.principal.claims['userId']) or hasAuthority('adm')")
     @Transactional
     public ResponseEntity<Void> editUser(@PathVariable Long id, @RequestBody UserCreate dto) {
         User user = userRepo.findById(id).orElseThrow();
@@ -102,7 +89,7 @@ public class UserController {
     }
 
     @DeleteMapping("/delete-user/{id}")
-    @PreAuthorize("hasAuthority('adm')")
+    @PreAuthorize("#id.equals(authentication.principal.claims['userId']) or hasAuthority('adm')")
     @Transactional
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         User user = userRepo.findById(id).orElseThrow();
