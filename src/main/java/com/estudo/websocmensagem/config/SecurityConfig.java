@@ -49,7 +49,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/login", "/register", "/ws-message/**").permitAll()
+                        .requestMatchers("/login", "/register", "/refresh", "/ws-message/**").permitAll()
                         .requestMatchers("/users").hasAuthority("adm")
                         .anyRequest().authenticated()
                 )
