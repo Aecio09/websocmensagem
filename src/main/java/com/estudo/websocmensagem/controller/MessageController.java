@@ -6,6 +6,8 @@ import com.estudo.websocmensagem.entities.User;
 import com.estudo.websocmensagem.repository.MessageRepository;
 import com.estudo.websocmensagem.entities.Message;
 import com.estudo.websocmensagem.repository.UserRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -16,7 +18,10 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -66,16 +71,17 @@ public class MessageController {
     //esse metodo tem um grande potencial problematico caso o numero de mensagens seja muito grande o json vai se gigante e vai travar tudo
     @GetMapping("/messages/{id}")
     @ResponseBody
-    public ResponseEntity<List<MessageResponse>> getMessages(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<Page<MessageResponse>> getMessages(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
         String username = jwt.getSubject();
         User currentUser = userRepo.findByUsername(username);
 
         User otherUser = userRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<Message> messages = mRepo.findConversationsBy(currentUser, otherUser);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Message> messagesPage = mRepo.findConversationsBy(currentUser, otherUser, pageable);
 
-        List<MessageResponse> response = messages.stream().map(message -> new MessageResponse(
+        Page<MessageResponse> responsePage = messagesPage.map(message -> new MessageResponse(
                 message.getId(),
                 message.getMessageContent(),
                 message.getSenderBy().getId(),
@@ -83,8 +89,8 @@ public class MessageController {
                 message.getRecipientBy().getId(),
                 message.getRecipientBy().getUsername(),
                 message.getCreatedAt()
-        )).toList();
+        ));
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(responsePage);
     }
 }

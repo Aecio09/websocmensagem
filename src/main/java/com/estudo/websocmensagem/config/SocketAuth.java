@@ -36,7 +36,12 @@ public class SocketAuth implements ChannelInterceptor {
                 try {
                     Jwt jwt = jwtDecoder.decode(token);
                     String username = jwt.getClaimAsString("sub");
-                    
+
+                    String type = jwt.getClaimAsString("type");
+
+                    if(!"access".equals(type)) {
+                        throw new RuntimeException("Invalid token type: " + type);
+                    }
                     
                     User user = userRepository.findByUsername(username);
                     if (user == null) {

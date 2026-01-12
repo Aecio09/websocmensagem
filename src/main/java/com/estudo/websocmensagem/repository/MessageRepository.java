@@ -3,6 +3,8 @@ package com.estudo.websocmensagem.repository;
 
 import com.estudo.websocmensagem.entities.Message;
 import com.estudo.websocmensagem.entities.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -14,5 +16,5 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     List<Message> findByRecipientBy(User recipientBy);
 
-    List<Message> findConversationsBy(User senderBy, User recipientBy);
+    Page<Message> findConversationsBy(User senderBy, User recipientBy, Pageable pageable);
 }
