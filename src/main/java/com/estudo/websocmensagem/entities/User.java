@@ -25,6 +25,9 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(columnDefinition = "TEXT", nullable = true)
+    private String publicKey;
+
     @OneToMany(mappedBy = "senderBy", cascade = CascadeType.ALL, orphanRemoval = true)
     @Column(nullable = true)
     private List<Message> messages = new ArrayList<>();

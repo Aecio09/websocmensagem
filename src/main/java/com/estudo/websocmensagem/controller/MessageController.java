@@ -67,8 +67,6 @@ public class MessageController {
                 response);
     }
 
-
-    //esse metodo tem um grande potencial problematico caso o numero de mensagens seja muito grande o json vai se gigante e vai travar tudo
     @GetMapping("/messages/{id}")
     @ResponseBody
     public ResponseEntity<Page<MessageResponse>> getMessages(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
