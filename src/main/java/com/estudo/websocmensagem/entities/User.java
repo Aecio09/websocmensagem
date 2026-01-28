@@ -32,6 +32,14 @@ public class User {
     @Column(nullable = true)
     private List<Message> messages = new ArrayList<>();
 
+    @ElementCollection
+    @Column(nullable = true)
+    private List<Long> friendsIds = new ArrayList<>();
+
+    @ElementCollection
+    @Column(nullable = true)
+    private List<Long> friendRequestsIds = new ArrayList<>();
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "tb_user_role",
@@ -39,5 +47,7 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<Role> roles = new HashSet<>();
+
+
 
 }
