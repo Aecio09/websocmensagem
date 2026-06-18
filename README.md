@@ -18,6 +18,3 @@ Um estudo de **Spring Security** e uso de **WebSocket**.
    `npm install && node index.js`
 
 ---
-
-## Minha opinião sobre eu mesmo:
-> Fazendo esse pequeno projeto reparei que um dos meus maiores problemas é configurar o `stompjs`/`websocket` junto ao `SpringSecurity`.
