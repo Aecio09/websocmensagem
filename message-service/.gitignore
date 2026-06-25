@@ -3,7 +3,6 @@ target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
-.node_modules/
 
 ### STS ###
 .apt_generated
@@ -32,6 +31,3 @@ build/
 
 ### VS Code ###
 .vscode/
-src/main/resources/app.key
-src/main/resources/app.pub
-/tui/node_modules
