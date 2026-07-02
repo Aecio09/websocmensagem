@@ -1,4 +1,4 @@
-package com.estudo.websocmensagem.config;
+package com.message_service.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

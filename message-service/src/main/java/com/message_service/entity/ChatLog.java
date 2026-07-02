@@ -1,13 +1,10 @@
-package com.estudo.websocmensagem.entities;
-
+package com.message_service.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.text.DateFormat;
 import java.time.LocalDateTime;
-
 
 @Getter
 @Setter

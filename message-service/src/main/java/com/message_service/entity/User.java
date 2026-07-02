@@ -1,10 +1,12 @@
-package com.estudo.websocmensagem.entities;
+package com.message_service.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Getter
@@ -21,6 +23,21 @@ public class User {
     private String username;
     @Column(nullable = false)
     private String password;
+
+    @Column(columnDefinition = "TEXT", nullable = true)
+    private String publicKey;
+
+    @OneToMany(mappedBy = "senderBy", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(nullable = true)
+    private List<Message> messages = new ArrayList<>();
+
+    @ElementCollection
+    @Column(nullable = true)
+    private List<Long> friendsIds = new ArrayList<>();
+
+    @ElementCollection
+    @Column(nullable = true)
+    private List<Long> friendRequestsIds = new ArrayList<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

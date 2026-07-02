@@ -1,7 +1,7 @@
-package com.estudo.websocmensagem.config;
+package com.message_service.config;
 
-import com.estudo.websocmensagem.entities.User;
-import com.estudo.websocmensagem.repository.UserRepository;
+import com.message_service.entity.User;
+import com.message_service.repository.UserRepository;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -28,7 +28,7 @@ public class SocketAuth implements ChannelInterceptor {
 
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authToken = accessor.getFirstNativeHeader("Authorization");
-            
+
 
             if (authToken != null && authToken.startsWith("Bearer ")) {
                 String token = authToken.substring(7);
@@ -42,7 +42,7 @@ public class SocketAuth implements ChannelInterceptor {
                     if(!"access".equals(type)) {
                         throw new RuntimeException("Invalid token type: " + type);
                     }
-                    
+
                     User user = userRepository.findByUsername(username);
                     if (user == null) {
                         throw new RuntimeException("User not found: " + username);

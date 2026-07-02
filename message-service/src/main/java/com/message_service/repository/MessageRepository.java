@@ -1,8 +1,7 @@
-package com.estudo.websocmensagem.repository;
+package com.message_service.repository;
 
-
-import com.estudo.websocmensagem.entities.Message;
-import com.estudo.websocmensagem.entities.User;
+import com.message_service.entity.Message;
+import com.message_service.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

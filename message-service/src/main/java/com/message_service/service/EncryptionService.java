@@ -1,7 +1,7 @@
-package com.estudo.websocmensagem.service;
+package com.message_service.service;
 
-import com.estudo.websocmensagem.entities.User;
-import com.estudo.websocmensagem.repository.UserRepository;
+import com.message_service.entity.User;
+import com.message_service.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +21,11 @@ public class EncryptionService {
     }
 
     @Transactional
-    public void registerPublicKey(Long userId, String publicKey) {
-        User user = userRepo.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+    public void registerPublicKey(String username, String publicKey) {
+        User user = userRepo.findByUsername(username);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found: " + username);
+        }
 
         validatePublicKey(publicKey);
         user.setPublicKey(publicKey);
@@ -60,4 +62,3 @@ public class EncryptionService {
     }
 
 }
-

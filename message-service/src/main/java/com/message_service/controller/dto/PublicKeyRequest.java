@@ -1,4 +1,4 @@
-package com.estudo.websocmensagem.controller.dto;
+package com.message_service.controller.dto;
 
 public record PublicKeyRequest(String publicKey) {
 }

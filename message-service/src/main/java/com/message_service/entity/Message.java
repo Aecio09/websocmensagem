@@ -1,4 +1,4 @@
-package com.estudo.websocmensagem.entities;
+package com.message_service.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

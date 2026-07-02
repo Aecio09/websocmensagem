@@ -1,6 +1,6 @@
-package com.estudo.websocmensagem.config;
+package com.message_service.config;
 
-import com.estudo.websocmensagem.repository.UserRepository;
+import com.message_service.repository.UserRepository;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;

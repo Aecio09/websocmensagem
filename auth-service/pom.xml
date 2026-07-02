@@ -36,10 +36,6 @@
 			<version>9.37.3</version>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-messaging</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
@@ -49,11 +45,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-security</artifactId>
+			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-websocket</artifactId>
+			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.kafka</groupId>
@@ -78,11 +74,6 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-websocket-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
