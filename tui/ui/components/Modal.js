@@ -12,7 +12,13 @@ export function showModal(screen, opts = {}) {
     cancelText = 'Cancelar',
     onConfirm,
     onCancel,
+    height,
   } = opts;
+
+  const msgLines = message ? message.split('\n').length : 0;
+  const boxH = height || (input
+    ? Math.max(12, msgLines + 7)
+    : Math.max(8, msgLines + 4));
 
   const overlay = blessed.box({
     parent: screen,
@@ -29,7 +35,7 @@ export function showModal(screen, opts = {}) {
     top: 'center',
     left: 'center',
     width: 50,
-    height: input ? 12 : 8,
+    height: boxH,
     border: theme.border,
     style: {
       border: { fg: theme.style.primary },
@@ -58,7 +64,7 @@ export function showModal(screen, opts = {}) {
   if (input) {
     inputField = blessed.textbox({
       parent: box,
-      top: message ? 3 : 1,
+      top: msgLines + 1,
       left: 2,
       right: 2,
       height: 3,
@@ -73,7 +79,7 @@ export function showModal(screen, opts = {}) {
     });
   }
 
-  const buttonY = input ? 7 : 4;
+  const buttonY = msgLines + (input ? 5 : 2);
 
   const confirmBtn = blessed.button({
     parent: box,

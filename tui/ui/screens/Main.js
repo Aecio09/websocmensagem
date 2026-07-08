@@ -5,7 +5,7 @@ import { navigate } from '../../app/Router.js';
 import { connectChat } from '../../socket/chat.js';
 import { findUserByUsername } from '../../api/users.js';
 import { getMessagesWith } from '../../api/messages.js';
-import { listFriends } from '../../api/friends.js';
+import { listFriends, getPendingRequests, getRelationshipStatus, sendFriendRequest, acceptFriendRequest, rejectFriendRequest, cancelFriendRequest } from '../../api/friends.js';
 import { getCachedPublicKey } from '../../api/keys.js';
 import { encryptMessage, decryptMessage, getPrivateKey } from '../../crypto/rsa.js';
 import { createStatusBar } from '../components/StatusBar.js';
@@ -24,6 +24,7 @@ export function mainScreen(screen) {
 
   let ws = null;
   let activeFocus = 'sidebar-conv';
+  let pendingIds = [];
 
   const container = blessed.box({
     parent: screen,
@@ -87,7 +88,7 @@ export function mainScreen(screen) {
     style: { fg: 'gray' },
   });
 
-  blessed.text({
+  const friendLabel = blessed.text({
     parent: sidebar,
     top: '50%',
     left: 1,
@@ -141,7 +142,7 @@ export function mainScreen(screen) {
     border: theme.border,
     scrollable: true,
     scrollbar: {
-      ch: '│',
+      ch: '\u2502',
       style: { fg: 'gray' },
     },
     style: {
@@ -177,9 +178,19 @@ export function mainScreen(screen) {
     tags: true,
   });
 
-  helpBar.setContent(
-    ' {gray-fg}[F1]{/gray-fg} Conversas/Amigos  {gray-fg}[F2]{/gray-fg} Adicionar  {gray-fg}[F3]{/gray-fg} Config  {gray-fg}[F4]{/gray-fg} Logs  {gray-fg}[Tab]{/gray-fg} Navegar  {gray-fg}[Ctrl+Q]{/gray-fg} Sair'
-  );
+  function updateHelpBar() {
+    helpBar.setContent(
+      ' {gray-fg}[F1]{/gray-fg} Conversas/Amigos  {gray-fg}[F2]{/gray-fg} Buscar  {gray-fg}[F3]{/gray-fg} Config  {gray-fg}[F4]{/gray-fg} Logs  {gray-fg}[F5]{/gray-fg} Solicita\u00e7\u00f5es  {gray-fg}[Tab]{/gray-fg} Navegar  {gray-fg}[Ctrl+Q]{/gray-fg} Sair'
+    );
+    screen.render();
+  }
+
+  function updateFriendLabel() {
+    const count = pendingIds.length;
+    const suffix = count > 0 ? ` {yellow-fg}(${count} pendente{/yellow-fg}${count > 1 ? 's' : ''})` : '';
+    friendLabel.setContent(` {cyan-fg}amigos{/cyan-fg}${suffix}`);
+    screen.render();
+  }
 
   function updateConvList() {
     const convs = state.get('conversations') || [];
@@ -214,7 +225,7 @@ export function mainScreen(screen) {
     const user = state.get('user');
     msgs.forEach(msg => {
       const isMine = msg.senderId === user?.id || msg.senderUsername === user?.username;
-      const sender = isMine ? 'Você' : (msg.senderUsername || 'Desconhecido');
+      const sender = isMine ? 'Voc\u00ea' : (msg.senderUsername || 'Desconhecido');
       const rawContent = msg.messageContent || msg.content || '';
       const content = tryDecrypt(rawContent);
       chatLog.log(renderMarkdown(`${sender}: ${content}`));
@@ -277,7 +288,7 @@ export function mainScreen(screen) {
     } catch {
       showModal(screen, {
         title: 'Erro',
-        message: 'Usuário não encontrado',
+        message: 'Usu\u00e1rio n\u00e3o encontrado',
         cancelText: 'Ok',
         onCancel: () => focusSidebar('conv'),
       });
@@ -316,10 +327,10 @@ export function mainScreen(screen) {
         createdAt: new Date().toISOString(),
       });
       state.set('messages', { ...state.get('messages'), [convId]: msgs });
-      chatLog.log(renderMarkdown(`Você: ${content}`));
+      chatLog.log(renderMarkdown(`Voc\u00ea: ${content}`));
       chatLog.setScrollPerc(100);
     } else {
-      chatLog.log('{yellow-fg}Aguardando conexão...{/yellow-fg}');
+      chatLog.log('{yellow-fg}Aguardando conex\u00e3o...{/yellow-fg}');
     }
 
     chatInput.clearValue();
@@ -376,6 +387,411 @@ export function mainScreen(screen) {
     screen.render();
   }
 
+  async function refreshFriends() {
+    const user = state.get('user');
+    if (!user) return;
+    try {
+      const [friends, pending] = await Promise.all([
+        listFriends(user.id),
+        getPendingRequests(user.id),
+      ]);
+      state.set('friends', friends || []);
+      pendingIds = (pending || []).map(p => p.id);
+      updateFriendList();
+      updateFriendLabel();
+    } catch {
+      // silent
+    }
+  }
+
+  async function searchUser() {
+    showModal(screen, {
+      title: 'Buscar Usu\u00e1rio',
+      message: 'Digite o nome do usu\u00e1rio:',
+      input: true,
+      confirmText: 'Buscar',
+      cancelText: 'Cancelar',
+      onConfirm: async (val) => {
+        if (!val || !val.trim()) return;
+        let found;
+        try {
+          found = await findUserByUsername(val.trim());
+        } catch {
+          showModal(screen, {
+            title: 'Erro',
+            message: 'Usu\u00e1rio n\u00e3o encontrado',
+            cancelText: 'Ok',
+            onCancel: () => focusSidebar('conv'),
+          });
+          return;
+        }
+        const user = state.get('user');
+        let status = 'NONE';
+        try {
+          const statusRes = await getRelationshipStatus(user.id, found.id);
+          status = statusRes.status;
+        } catch {
+          // message-service pode estar offline; assume NONE
+        }
+        showUserActions(found, status);
+      },
+      onCancel: () => {
+        if (state.get('activeConversationId')) focusChatInput();
+        else focusSidebar('conv');
+      },
+    });
+  }
+
+  function showUserActions(found, status) {
+    const user = state.get('user');
+    const actions = [];
+    if (status === 'SELF') {
+      showModal(screen, {
+        title: 'Usu\u00e1rio',
+        message: `{cyan-fg}${found.username}{/cyan-fg}\n\nEste \u00e9 voc\u00ea!`,
+        cancelText: 'Voltar',
+        onCancel: () => focusSidebar('conv'),
+      });
+      return;
+    }
+    if (status === 'NONE') {
+      actions.push({ label: 'Adicionar Amigo', action: 'add' });
+      actions.push({ label: 'Conversar', action: 'chat' });
+    } else if (status === 'FRIENDS') {
+      actions.push({ label: 'Conversar', action: 'chat' });
+    } else if (status === 'PENDING_SENT') {
+      actions.push({ label: 'Cancelar Solicita\u00e7\u00e3o', action: 'cancel' });
+      actions.push({ label: 'Conversar', action: 'chat' });
+    } else if (status === 'PENDING_RECEIVED') {
+      actions.push({ label: 'Aceitar', action: 'accept' });
+      actions.push({ label: 'Recusar', action: 'reject' });
+      actions.push({ label: 'Conversar', action: 'chat' });
+    }
+    actions.push({ label: 'Voltar', action: 'back' });
+
+    const actionLabels = actions.map((a, i) => `${i + 1}. ${a.label}`).join('\n');
+    showModal(screen, {
+      title: found.username,
+      message: `{cyan-fg}${found.username}{/cyan-fg}\n\n${actionLabels}\n\nEscolha uma op\u00e7\u00e3o digitando o n\u00famero no chat:`,
+      input: true,
+      placeholder: 'n\u00famero',
+      confirmText: 'Ok',
+      cancelText: 'Voltar',
+      onConfirm: async (val) => {
+        const idx = parseInt(val, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= actions.length) return;
+        const chosen = actions[idx];
+        switch (chosen.action) {
+          case 'add':
+            try {
+              await sendFriendRequest(user.id, found.id);
+              showModal(screen, {
+                title: 'Sucesso',
+                message: `Solicita\u00e7\u00e3o enviada para ${found.username}`,
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            } catch {
+              showModal(screen, {
+                title: 'Erro',
+                message: 'N\u00e3o foi poss\u00edvel enviar solicita\u00e7\u00e3o',
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            }
+            break;
+          case 'chat':
+            addConversation(found.username);
+            break;
+          case 'cancel':
+            try {
+              await cancelFriendRequest(user.id, found.id);
+              showModal(screen, {
+                title: 'Sucesso',
+                message: 'Solicita\u00e7\u00e3o cancelada',
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            } catch {
+              showModal(screen, {
+                title: 'Erro',
+                message: 'N\u00e3o foi poss\u00edvel cancelar',
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            }
+            break;
+          case 'accept':
+            try {
+              await acceptFriendRequest(user.id, found.id);
+              refreshFriends();
+              showModal(screen, {
+                title: 'Sucesso',
+                message: `Voc\u00ea e ${found.username} s\u00e3o amigos agora!`,
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            } catch {
+              showModal(screen, {
+                title: 'Erro',
+                message: 'N\u00e3o foi poss\u00edvel aceitar',
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            }
+            break;
+          case 'reject':
+            try {
+              await rejectFriendRequest(user.id, found.id);
+              refreshFriends();
+              showModal(screen, {
+                title: 'Sucesso',
+                message: `Solicita\u00e7\u00e3o de ${found.username} recusada`,
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            } catch {
+              showModal(screen, {
+                title: 'Erro',
+                message: 'N\u00e3o foi poss\u00edvel recusar',
+                cancelText: 'Ok',
+                onCancel: () => focusSidebar('conv'),
+              });
+            }
+            break;
+          case 'back':
+            focusSidebar('conv');
+            break;
+        }
+      },
+      onCancel: () => focusSidebar('conv'),
+    });
+  }
+
+  function showPendingRequests() {
+    (async () => {
+      const user = state.get('user');
+      if (!user) return;
+      try {
+        const pending = await getPendingRequests(user.id);
+        if (!pending || pending.length === 0) {
+          showModal(screen, {
+            title: 'Solicita\u00e7\u00f5es',
+            message: 'Nenhuma solicita\u00e7\u00e3o pendente',
+            cancelText: 'Ok',
+            onCancel: () => focusSidebar('conv'),
+          });
+          return;
+        }
+        showPendingList(pending);
+      } catch {
+        showModal(screen, {
+          title: 'Erro',
+          message: 'Erro ao carregar solicita\u00e7\u00f5es',
+          cancelText: 'Ok',
+          onCancel: () => focusSidebar('conv'),
+        });
+      }
+    })();
+  }
+
+  function showPendingList(pending) {
+    const user = state.get('user');
+    const overlay = blessed.box({
+      parent: screen,
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      style: { bg: 'black', transparent: true },
+      keys: true,
+    });
+
+    const listHeight = Math.min(pending.length + 4, 16);
+    const box = blessed.box({
+      parent: overlay,
+      top: 'center',
+      left: 'center',
+      width: 46,
+      height: listHeight,
+      border: theme.border,
+      style: {
+        border: { fg: theme.style.primary },
+        bg: 'black',
+        fg: 'white',
+      },
+      label: ' Solicita\u00e7\u00f5es Pendentes ',
+      keys: true,
+      vi: true,
+      shadow: true,
+    });
+
+    const list = blessed.list({
+      parent: box,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 3,
+      keys: true,
+      vi: true,
+      tags: true,
+      style: {
+        selected: { bg: theme.style.primary, fg: 'white' },
+        item: { fg: 'white' },
+      },
+      items: pending.map(p => `${p.username}`),
+    });
+
+    const btnBox = blessed.box({
+      parent: box,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 3,
+    });
+
+    const acceptBtn = blessed.button({
+      parent: btnBox,
+      top: 0,
+      left: 2,
+      width: 12,
+      height: 1,
+      content: '[Aceitar]',
+      style: {
+        fg: 'green',
+        focus: { fg: 'white', bg: 'green' },
+      },
+    });
+
+    const rejectBtn = blessed.button({
+      parent: btnBox,
+      top: 0,
+      left: 16,
+      width: 12,
+      height: 1,
+      content: '[Recusar]',
+      style: {
+        fg: 'red',
+        focus: { fg: 'white', bg: 'red' },
+      },
+    });
+
+    const closeBtn = blessed.button({
+      parent: btnBox,
+      top: 0,
+      left: 30,
+      width: 10,
+      height: 1,
+      content: '[Voltar]',
+      style: {
+        fg: theme.style.muted,
+        focus: { fg: 'white', bg: theme.style.muted },
+      },
+    });
+
+    function cleanup() {
+      if (overlay.parent) {
+        overlay.detach();
+        screen.render();
+      }
+    }
+
+    function handleAccept() {
+      const idx = list.selected;
+      const target = pending[idx];
+      if (!target) return;
+      cleanup();
+      (async () => {
+        try {
+          await acceptFriendRequest(user.id, target.id);
+          refreshFriends();
+          showModal(screen, {
+            title: 'Sucesso',
+            message: `Voc\u00ea e ${target.username} s\u00e3o amigos agora!`,
+            cancelText: 'Ok',
+            onCancel: () => focusSidebar('conv'),
+          });
+        } catch {
+          showModal(screen, {
+            title: 'Erro',
+            message: 'N\u00e3o foi poss\u00edvel aceitar',
+            cancelText: 'Ok',
+            onCancel: () => focusSidebar('conv'),
+          });
+        }
+      })();
+    }
+
+    function handleReject() {
+      const idx = list.selected;
+      const target = pending[idx];
+      if (!target) return;
+      cleanup();
+      (async () => {
+        try {
+          await rejectFriendRequest(user.id, target.id);
+          refreshFriends();
+          showModal(screen, {
+            title: 'Sucesso',
+            message: `Solicita\u00e7\u00e3o de ${target.username} recusada`,
+            cancelText: 'Ok',
+            onCancel: () => focusSidebar('conv'),
+          });
+        } catch {
+          showModal(screen, {
+            title: 'Erro',
+            message: 'N\u00e3o foi poss\u00edvel recusar',
+            cancelText: 'Ok',
+            onCancel: () => focusSidebar('conv'),
+          });
+        }
+      })();
+    }
+
+    const focusOrder = [list, acceptBtn, rejectBtn, closeBtn];
+    let focusIdx = 0;
+
+    function focusNext() {
+      focusIdx = (focusIdx + 1) % focusOrder.length;
+      focusOrder[focusIdx].focus();
+      screen.render();
+    }
+
+    function focusPrev() {
+      focusIdx = (focusIdx - 1 + focusOrder.length) % focusOrder.length;
+      focusOrder[focusIdx].focus();
+      screen.render();
+    }
+
+    focusOrder.forEach(el => {
+      el.key(['tab', 'down'], focusNext);
+      el.key(['up'], focusPrev);
+    });
+
+    acceptBtn.on('press', handleAccept);
+    rejectBtn.on('press', handleReject);
+    closeBtn.on('press', () => {
+      cleanup();
+      focusSidebar('conv');
+    });
+
+    [acceptBtn, rejectBtn, closeBtn].forEach(el => {
+      el.key(['escape'], () => {
+        cleanup();
+        focusSidebar('conv');
+      });
+    });
+    list.key(['escape'], () => {
+      cleanup();
+      focusSidebar('conv');
+    });
+
+    list.key(['enter'], handleAccept);
+
+    list.focus();
+    screen.render();
+  }
+
   // --- WebSocket ---
   const token = state.get('token');
   if (token) {
@@ -388,14 +804,17 @@ export function mainScreen(screen) {
     );
   }
 
-  // --- Load friends ---
+  // --- Load initial data ---
   (async () => {
     const user = state.get('user');
     if (user) {
       try {
         const friends = await listFriends(user.id);
         state.set('friends', friends || []);
+        const pending = await getPendingRequests(user.id);
+        pendingIds = (pending || []).map(p => p.id);
         updateFriendList();
+        updateFriendLabel();
       } catch {
         // no friends yet
       }
@@ -421,7 +840,7 @@ export function mainScreen(screen) {
 
   chatInput.on('submit', handleSendMessage);
 
-  // --- Screen-level key handlers (blessed propaga como 'element key X' pra parents) ---
+  // --- Screen-level key handlers ---
   const screenKeyHandlers = [];
   function addScreenKey(key, handler) {
     screen.key([key], handler);
@@ -453,24 +872,10 @@ export function mainScreen(screen) {
     if (activeFocus === 'sidebar-conv') focusSidebar('friends');
     else focusSidebar('conv');
   });
-  addScreenKey('f2', () => {
-    showModal(screen, {
-      title: 'Adicionar Conversa',
-      message: 'Digite o nome do usuário:',
-      input: true,
-      confirmText: 'Buscar',
-      cancelText: 'Cancelar',
-      onConfirm: (val) => {
-        if (val && val.trim()) addConversation(val.trim());
-      },
-      onCancel: () => {
-        if (state.get('activeConversationId')) focusChatInput();
-        else focusSidebar('conv');
-      },
-    });
-  });
+  addScreenKey('f2', searchUser);
   addScreenKey('f3', () => navigate('settings'));
   addScreenKey('f4', () => navigate('logs'));
+  addScreenKey('f5', showPendingRequests);
   addScreenKey('C-q', () => process.exit(0));
 
   // --- State listeners ---
@@ -478,6 +883,7 @@ export function mainScreen(screen) {
   unsubs.push(state.on('conversations', updateConvList));
 
   // --- Init ---
+  updateHelpBar();
   updateConvList();
   focusSidebar('conv');
   screen.render();

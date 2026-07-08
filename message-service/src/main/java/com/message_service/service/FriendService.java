@@ -92,4 +92,24 @@ public class FriendService {
         friend.getFriendRequestsIds().remove(id);
         userRepo.save(friend);
     }
+
+    public List<UserResponseForusr> getPendingRequests(Long id) {
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+
+        return user.getFriendRequestsIds().stream()
+                .map(reqId -> userRepo.findById(reqId).orElseThrow(() -> new RuntimeException("User not found")))
+                .map(req -> new UserResponseForusr(req.getId(), req.getUsername()))
+                .toList();
+    }
+
+    public String getRelationshipStatus(Long id, Long targetId) {
+        if (id.equals(targetId)) return "SELF";
+        User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        User target = userRepo.findById(targetId).orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getFriendsIds().contains(targetId)) return "FRIENDS";
+        if (user.getFriendRequestsIds().contains(targetId)) return "PENDING_RECEIVED";
+        if (target.getFriendRequestsIds().contains(id)) return "PENDING_SENT";
+        return "NONE";
+    }
 }

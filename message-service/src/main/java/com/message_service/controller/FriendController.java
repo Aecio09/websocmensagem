@@ -1,5 +1,6 @@
 package com.message_service.controller;
 
+import com.message_service.controller.dto.FriendStatusResponse;
 import com.message_service.controller.dto.UserResponseForusr;
 import com.message_service.service.FriendService;
 import org.springframework.http.ResponseEntity;
@@ -49,5 +50,17 @@ public class FriendController {
     public ResponseEntity<Void> cancelFriendRequest(@PathVariable Long id, @PathVariable Long friendId) {
         friendService.cancelFriendRequest(id, friendId);
         return ResponseEntity.status(201).build();
+    }
+
+    @GetMapping("/users/friends/pending/{id}")
+    @PreAuthorize("#id.equals(authentication.principal.claims['userId']) or hasAuthority('adm')")
+    public ResponseEntity<List<UserResponseForusr>> getPendingRequests(@PathVariable Long id) {
+        return ResponseEntity.ok(friendService.getPendingRequests(id));
+    }
+
+    @GetMapping("/users/friends/status/{id}/{targetId}")
+    @PreAuthorize("#id.equals(authentication.principal.claims['userId']) or hasAuthority('adm')")
+    public ResponseEntity<FriendStatusResponse> getRelationshipStatus(@PathVariable Long id, @PathVariable Long targetId) {
+        return ResponseEntity.ok(new FriendStatusResponse(friendService.getRelationshipStatus(id, targetId)));
     }
 }
