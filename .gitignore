@@ -36,3 +36,7 @@ src/main/resources/app.key
 src/main/resources/app.pub
 /tui/node_modules
 *.key
+*.pub
+message-service/src/main/resources/app.pub
+auth-service/src/main/resources/app.pub
+auth-service/src/main/resources/app.key
