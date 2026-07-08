@@ -5,6 +5,7 @@ import com.message_service.entity.User;
 import com.message_service.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import com.message_service.controller.dto.FriendEventDto;
 
 import java.util.List;
 
@@ -12,9 +13,11 @@ import java.util.List;
 public class FriendService {
 
     private final UserRepository userRepo;
+    private final KafkaMessageProducerService kafkaProducer;
 
-    public FriendService(UserRepository userRepo) {
+    public FriendService(UserRepository userRepo, KafkaMessageProducerService kafkaProducer) {
         this.userRepo = userRepo;
+        this.kafkaProducer = kafkaProducer;
     }
 
     public List<UserResponseForusr> getFriends(Long id) {
@@ -28,11 +31,19 @@ public class FriendService {
 
     @Transactional
     public void sendFriendRequest(Long id, Long friendId) {
+        if (id.equals(friendId)) {
+            throw new RuntimeException("You cannot send a friend request to yourself");
+        }
+
         User user = userRepo.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
         User friend = userRepo.findById(friendId).orElseThrow(() -> new RuntimeException("Friend not found"));
 
         if (user.getFriendsIds().contains(friendId)) {
             throw new RuntimeException("Already friends");
+        }
+
+        if (friend.getFriendRequestsIds().contains(id)) {
+            throw new RuntimeException("Friend request already sent");
         }
 
         friend.getFriendRequestsIds().add(id);
@@ -53,6 +64,9 @@ public class FriendService {
         user.getFriendRequestsIds().remove(friendId);
         userRepo.save(user);
         userRepo.save(friend);
+        
+        FriendEventDto friendEvent = new FriendEventDto(id, friendId);
+        kafkaProducer.sendFriendEvent(friendEvent);
     }
 
     @Transactional

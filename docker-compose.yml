@@ -14,6 +14,11 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Message Broker Coordination
   zookeeper:
@@ -72,8 +77,12 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/websoc_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=rootpassword
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
-      - mysql
+      kafka:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -92,8 +101,10 @@ services:
       - SPRING_DATASOURCE_PASSWORD=rootpassword
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on:
-      - kafka
-      - mysql
+      kafka:
+        condition: service_started
+      mysql:
+        condition: service_healthy
     networks:
       - app-network
 

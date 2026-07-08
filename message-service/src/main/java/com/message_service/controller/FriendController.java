@@ -20,7 +20,7 @@ public class FriendController {
     @GetMapping("/users/friends/{id}")
     @PreAuthorize("#id.equals(authentication.principal.claims['userId']) or hasAuthority('adm')")
     public ResponseEntity<List<UserResponseForusr>> getFriends(@PathVariable Long id) {
-        return ResponseEntity.status(201).body(friendService.getFriends(id));
+        return ResponseEntity.ok(friendService.getFriends(id));
     }
 
     @PostMapping("/users/friends/sendrequest/{id}/{friendId}")

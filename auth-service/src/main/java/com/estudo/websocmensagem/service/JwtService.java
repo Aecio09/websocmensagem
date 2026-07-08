@@ -9,6 +9,9 @@ import com.estudo.websocmensagem.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.stereotype.Service;
+import com.estudo.websocmensagem.controller.dto.EventType;
+import com.estudo.websocmensagem.controller.dto.KafkaDto;
+
 
 import java.time.Instant;
 import java.util.Set;
@@ -21,16 +24,18 @@ public class JwtService {
     private final JwtDecoder decoder;
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
+    private final AuthEventService authEventService;
 
     private static final long EXPIREtime = 900L;
     private static final long REFRESHtime = 604800L;
 
     public JwtService(JwtEncoder encoder, JwtDecoder decoder,
-                      UserRepository userRepo, PasswordEncoder passwordEncoder) {
+                      UserRepository userRepo, PasswordEncoder passwordEncoder, AuthEventService authEventService) {
         this.encoder = encoder;
         this.decoder = decoder;
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
+        this.authEventService = authEventService;
     }
 
     public LoginResponse login(LoginRequest dto) {
@@ -39,7 +44,12 @@ public class JwtService {
             return null;
         }
 
-        return buildLoginResponse(user);
+        LoginResponse response = buildLoginResponse(user);
+        
+        KafkaDto event = new KafkaDto(EventType.LOGIN, user.getId(), user.getUsername(), response.token());
+        authEventService.sendAuthEvent(event);
+        
+        return response;
     }
 
     public LoginResponse refresh(RefreshTokenRequest request) {

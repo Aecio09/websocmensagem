@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import com.message_service.controller.dto.ChatMessageDto;
 
 import java.time.LocalDateTime;
 
@@ -22,11 +23,13 @@ public class MessageService {
     private final SimpMessagingTemplate template;
     private final MessageRepository mRepo;
     private final UserRepository userRepo;
+    private final KafkaMessageProducerService kafkaProducer;
 
-    public MessageService(SimpMessagingTemplate template, MessageRepository mRepo, UserRepository userRepo) {
+    public MessageService(SimpMessagingTemplate template, MessageRepository mRepo, UserRepository userRepo, KafkaMessageProducerService kafkaProducer) {
         this.template = template;
         this.mRepo = mRepo;
         this.userRepo = userRepo;
+        this.kafkaProducer = kafkaProducer;
     }
 
     public void sendMessage(MessageRequest request, User sender) {
@@ -55,6 +58,9 @@ public class MessageService {
                 recipient.getUsername(),
                 "/queue/messages",
                 response);
+                
+        ChatMessageDto chatEvent = new ChatMessageDto(sender.getId(), recipient.getId(), request.content(), message.getCreatedAt().toString());
+        kafkaProducer.sendChatMessage(chatEvent);
     }
 
     public Page<MessageResponse> getConversation(Long userId, Jwt jwt, int page, int size) {

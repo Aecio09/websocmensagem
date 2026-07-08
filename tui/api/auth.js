@@ -1,19 +1,26 @@
 import { api } from './client.js';
 
-export async function login(username, password) {
+function decodeJwt(token) {
   try {
-    const res = await api.post('/login', { username, password });
-    return res.data.token;
-  } catch (err) {
-    // Propaga o erro com mais detalhes
-    if (err.response) {
-      throw new Error(`${err.response.status}: ${err.response.data?.message || 'Credenciais inválidas'}`);
-    } else if (err.request) {
-      throw new Error('Servidor não respondeu - verifique se o backend está rodando');
-    } else {
-      throw new Error(err.message);
-    }
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch {
+    return null;
   }
+}
+
+export async function login(username, password) {
+  const res = await api.post('/login', { username, password });
+  const data = res.data;
+  const decoded = decodeJwt(data.token);
+  return {
+    token: data.token,
+    refreshToken: data.refreshToken,
+    expiration: data.expiration,
+    user: decoded
+      ? { id: decoded.userId, username: decoded.sub, roles: (decoded.scope || '').split(' ') }
+      : null,
+  };
 }
 
 export async function register(username, password) {
@@ -22,14 +29,25 @@ export async function register(username, password) {
     return true;
   } catch (err) {
     if (err.response) {
-      if (err.response.status === 409) {
-        throw new Error('Usuário já existe');
-      }
-      throw new Error(`${err.response.status}: ${err.response.data?.message || 'Erro ao registrar'}`);
-    } else if (err.request) {
-      throw new Error('Servidor não respondeu - verifique se o backend está rodando');
-    } else {
-      throw new Error(err.message);
+      if (err.response.status === 409) throw new Error('Usuário já existe');
+      throw new Error(err.response.data?.message || 'Erro ao registrar');
     }
+    throw new Error('Servidor não respondeu');
   }
 }
+
+export async function editUser(userId, username, password) {
+  const res = await api.put(`/edit-user/${userId}`, { username, password });
+  return res.data;
+}
+
+export async function deleteUser(userId) {
+  await api.delete(`/delete-user/${userId}`);
+}
+
+export async function listUsers() {
+  const res = await api.get('/users');
+  return res.data;
+}
+
+export { decodeJwt };

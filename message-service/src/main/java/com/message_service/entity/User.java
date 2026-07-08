@@ -33,11 +33,11 @@ public class User {
 
     @ElementCollection
     @Column(nullable = true)
-    private List<Long> friendsIds = new ArrayList<>();
+    private Set<Long> friendsIds = new HashSet<>();
 
     @ElementCollection
     @Column(nullable = true)
-    private List<Long> friendRequestsIds = new ArrayList<>();
+    private Set<Long> friendRequestsIds = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

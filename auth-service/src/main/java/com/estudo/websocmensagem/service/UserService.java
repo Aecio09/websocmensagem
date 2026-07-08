@@ -10,6 +10,8 @@ import com.estudo.websocmensagem.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.estudo.websocmensagem.controller.dto.EventType;
+import com.estudo.websocmensagem.controller.dto.KafkaDto;
 
 import java.util.List;
 
@@ -19,11 +21,13 @@ public class UserService {
     private final UserRepository userRepo;
     private final RoleRepository roleRepo;
     private final PasswordEncoder passwordEncoder;
+    private final AuthEventService authEventService;
 
-    public UserService(UserRepository userRepo, RoleRepository roleRepo, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepo, RoleRepository roleRepo, PasswordEncoder passwordEncoder, AuthEventService authEventService) {
         this.userRepo = userRepo;
         this.roleRepo = roleRepo;
         this.passwordEncoder = passwordEncoder;
+        this.authEventService = authEventService;
     }
 
     @Transactional
@@ -38,7 +42,13 @@ public class UserService {
         user.setUsername(dto.username());
         user.setPassword(passwordEncoder.encode(dto.password()));
         user.getRoles().add(role);
-        return userRepo.save(user);
+        
+        User savedUser = userRepo.save(user);
+        
+        KafkaDto event = new KafkaDto(EventType.REGISTER, savedUser.getId(), savedUser.getUsername(), null);
+        authEventService.sendAuthEvent(event);
+        
+        return savedUser;
     }
 
     public List<UserResponse> listUsers() {

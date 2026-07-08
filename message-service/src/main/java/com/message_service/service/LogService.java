@@ -23,31 +23,22 @@ public class LogService {
 
     @Transactional
     public void archiveMessages() {
-        for (Message message : mRepo.findAll()) {
-            if (getMessageDuration(message) >= 30) {
-                boolean logCreated = createLog(message.getId());
-                if (logCreated) {
-                    mRepo.deleteById(message.getId());
-                }
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+        for (Message message : mRepo.findMessagesOlderThan(cutoff)) {
+            boolean logCreated = createLog(message);
+            if (logCreated) {
+                mRepo.delete(message);
             }
         }
     }
 
-    private long getMessageDuration(Message message) {
-        return Duration.between(message.getCreatedAt(), LocalDateTime.now()).toDays();
-    }
-
     @Transactional
-    public boolean createLog(Long messageId) {
-        Message message = mRepo.findById(messageId)
-                .orElseThrow(() -> new RuntimeException("Message not found"));
-
+    public boolean createLog(Message message) {
         ChatLog log = new ChatLog();
         log.setSender(message.getSenderBy());
         log.setRecipient(message.getRecipientBy());
         log.setDateHour(message.getCreatedAt());
         logRepo.save(log);
-
         return true;
     }
 }
