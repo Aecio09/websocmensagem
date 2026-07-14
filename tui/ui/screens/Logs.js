@@ -71,6 +71,9 @@ export function logsScreen(screen) {
     ['down', () => { logsLog.scroll(1); screen.render(); }],
   ];
   logKeys.forEach(([key, handler]) => screen.key([key], handler));
+  function removeLogKeys() {
+    logKeys.forEach(([key, handler]) => screen.unkey(key, handler));
+  }
 
   const user = state.get('user');
 
@@ -101,7 +104,12 @@ export function logsScreen(screen) {
   backBtn.focus();
   screen.render();
 
+  function removeLogKeys() {
+    logKeys.forEach(([key, handler]) => screen.unkey(key, handler));
+  }
+
   return () => {
+    removeLogKeys();
     container.detach();
     screen.render();
   };

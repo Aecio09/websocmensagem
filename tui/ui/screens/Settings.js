@@ -235,20 +235,29 @@ export function settingsScreen(screen) {
     });
   });
 
-  screen.key(['down'], () => {
+  const screenKeys = [];
+  function addScreenKey(key, handler) {
+    screen.key([key], handler);
+    screenKeys.push([key, handler]);
+  }
+  function removeScreenKeys() {
+    screenKeys.forEach(([key, handler]) => screen.unkey(key, handler));
+  }
+
+  addScreenKey('down', () => {
     const idx = settingsOrder.findIndex(e => e.focused);
     focusSettingsIndex(idx + 1);
   });
-  screen.key(['up'], () => {
+  addScreenKey('up', () => {
     const idx = settingsOrder.findIndex(e => e.focused);
     focusSettingsIndex(idx - 1);
   });
 
-  screen.key(['e'], toggleE2E);
-  screen.key(['n'], toggleNotif);
-  screen.key(['u'], handleEdit);
-  screen.key(['d'], handleDelete);
-  screen.key(['escape'], () => { container.detach(); navigate('main'); });
+  addScreenKey('e', toggleE2E);
+  addScreenKey('n', toggleNotif);
+  addScreenKey('u', handleEdit);
+  addScreenKey('d', handleDelete);
+  addScreenKey('escape', () => { container.detach(); navigate('main'); });
 
   editBtn.on('press', handleEdit);
   deleteBtn.on('press', handleDelete);
@@ -258,6 +267,7 @@ export function settingsScreen(screen) {
   screen.render();
 
   return () => {
+    removeScreenKeys();
     container.detach();
     screen.render();
   };

@@ -40,3 +40,6 @@ src/main/resources/app.pub
 message-service/src/main/resources/app.pub
 auth-service/src/main/resources/app.pub
 auth-service/src/main/resources/app.key
+*.pub
+*.pub
+*.key

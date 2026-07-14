@@ -189,21 +189,31 @@ export function loginScreen(screen) {
     el.key(['left'], () => { loginBtn.focus(); screen.render(); });
   });
 
+  const screenKeys = [];
+  function addScreenKey(key, handler) {
+    screen.key([key], handler);
+    screenKeys.push([key, handler]);
+  }
+  function removeScreenKeys() {
+    screenKeys.forEach(([key, handler]) => screen.unkey(key, handler));
+  }
+
   // Fallback screen-level para quando elemento não tem keys: true
-  screen.key(['down'], () => {
+  addScreenKey('down', () => {
     const idx = loginOrder.findIndex(el => el.focused);
     focusLoginIndex(idx + 1);
   });
-  screen.key(['up'], () => {
+  addScreenKey('up', () => {
     const idx = loginOrder.findIndex(el => el.focused);
     focusLoginIndex(idx - 1);
   });
-  screen.key(['escape'], () => {});
+  addScreenKey('escape', () => {});
 
   usernameInput.focus();
   screen.render();
 
   return () => {
+    removeScreenKeys();
     container.detach();
     screen.render();
   };
@@ -380,20 +390,30 @@ export function registerScreen(screen) {
     el.key(['left'], () => { registerBtn.focus(); screen.render(); });
   });
 
-  screen.key(['down'], () => {
+  const screenKeys = [];
+  function addScreenKey(key, handler) {
+    screen.key([key], handler);
+    screenKeys.push([key, handler]);
+  }
+  function removeScreenKeys() {
+    screenKeys.forEach(([key, handler]) => screen.unkey(key, handler));
+  }
+
+  addScreenKey('down', () => {
     const idx = registerOrder.findIndex(e => e.focused);
     focusRegisterIndex(idx + 1);
   });
-  screen.key(['up'], () => {
+  addScreenKey('up', () => {
     const idx = registerOrder.findIndex(e => e.focused);
     focusRegisterIndex(idx - 1);
   });
-  screen.key(['escape'], () => { container.detach(); navigate('login'); });
+  addScreenKey('escape', () => { container.detach(); navigate('login'); });
 
   usernameInput.focus();
   screen.render();
 
   return () => {
+    removeScreenKeys();
     container.detach();
     screen.render();
   };

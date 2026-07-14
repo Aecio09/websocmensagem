@@ -165,8 +165,47 @@ export function mainScreen(screen) {
       focus: { border: { fg: theme.style.primary } },
       bg: 'black',
     },
-    inputOnFocus: true,
   });
+
+  let chatInputReading = false;
+
+  function startChatInput() {
+    if (chatInputReading && typeof chatInput._done === 'function') {
+      chatInput._done('stop');
+    }
+    if (chatInput.__listener) {
+      chatInput.removeListener('keypress', chatInput.__listener);
+      delete chatInput.__listener;
+    }
+    if (chatInput.__done) {
+      chatInput.removeListener('blur', chatInput.__done);
+      delete chatInput.__done;
+    }
+    chatInputReading = false;
+    chatInput._reading = false;
+
+    chatInput.focus();
+    chatInput.readInput();
+    chatInputReading = true;
+  }
+
+  function stopChatInput() {
+    if (chatInputReading && typeof chatInput._done === 'function') {
+      chatInput._done('stop');
+    }
+    if (chatInput.__listener) {
+      chatInput.removeListener('keypress', chatInput.__listener);
+      delete chatInput.__listener;
+    }
+    if (chatInput.__done) {
+      chatInput.removeListener('blur', chatInput.__done);
+      delete chatInput.__done;
+    }
+    chatInputReading = false;
+    chatInput._reading = false;
+    chatInput.screen.program.hideCursor();
+    chatInput.screen.grabKeys = false;
+  }
 
   const helpBar = blessed.box({
     parent: screen,
@@ -180,7 +219,7 @@ export function mainScreen(screen) {
 
   function updateHelpBar() {
     helpBar.setContent(
-      ' {gray-fg}[F1]{/gray-fg} Conversas/Amigos  {gray-fg}[F2]{/gray-fg} Buscar  {gray-fg}[F3]{/gray-fg} Config  {gray-fg}[F4]{/gray-fg} Logs  {gray-fg}[F5]{/gray-fg} Solicita\u00e7\u00f5es  {gray-fg}[Tab]{/gray-fg} Navegar  {gray-fg}[Ctrl+Q]{/gray-fg} Sair'
+      ' {gray-fg}[F1]{/gray-fg} Amigos  {gray-fg}[F2]{/gray-fg} Buscar  {gray-fg}[F3]{/gray-fg} Config  {gray-fg}[F4]{/gray-fg} Logs  {gray-fg}[F5]{/gray-fg} Solicita\u00e7\u00f5es  {gray-fg}[Tab]{/gray-fg} Navegar  {gray-fg}[Ctrl+Q]{/gray-fg} Sair'
     );
     screen.render();
   }
@@ -256,8 +295,8 @@ export function mainScreen(screen) {
 
     chatLabel.setContent(` {cyan-fg}${conv.username}{/cyan-fg}`);
     chatInput.show();
-    chatInput.focus();
     activeFocus = 'chat-input';
+    startChatInput();
 
     await loadConversationMessages(convId);
 
@@ -310,7 +349,7 @@ export function mainScreen(screen) {
       } catch {
         chatLog.log('{red-fg}Erro ao criptografar{/red-fg}');
         chatInput.clearValue();
-        chatInput.focus();
+        startChatInput();
         screen.render();
         return;
       }
@@ -334,7 +373,7 @@ export function mainScreen(screen) {
     }
 
     chatInput.clearValue();
-    chatInput.focus();
+    startChatInput();
     screen.render();
   }
 
@@ -369,6 +408,7 @@ export function mainScreen(screen) {
   }
 
   function focusSidebar(target) {
+    if (activeFocus === 'chat-input') stopChatInput();
     if (target === 'conv') {
       activeFocus = 'sidebar-conv';
       convList.focus();
@@ -383,7 +423,7 @@ export function mainScreen(screen) {
     const convId = state.get('activeConversationId');
     if (!convId) return;
     activeFocus = 'chat-input';
-    chatInput.focus();
+    startChatInput();
     screen.render();
   }
 
@@ -607,20 +647,19 @@ export function mainScreen(screen) {
       keys: true,
     });
 
-    const listHeight = Math.min(pending.length + 4, 16);
     const box = blessed.box({
       parent: overlay,
       top: 'center',
       left: 'center',
-      width: 46,
-      height: listHeight,
+      width: 50,
+      height: 12,
       border: theme.border,
       style: {
         border: { fg: theme.style.primary },
         bg: 'black',
         fg: 'white',
       },
-      label: ' Solicita\u00e7\u00f5es Pendentes ',
+      label: ' Solicitações Pendentes ',
       keys: true,
       vi: true,
       shadow: true,
@@ -628,26 +667,28 @@ export function mainScreen(screen) {
 
     const list = blessed.list({
       parent: box,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 3,
+      top: 1,
+      left: 2,
+      right: 2,
+      height: 5,
+      border: theme.border,
       keys: true,
       vi: true,
       tags: true,
       style: {
+        border: { fg: 'gray' },
         selected: { bg: theme.style.primary, fg: 'white' },
         item: { fg: 'white' },
       },
-      items: pending.map(p => `${p.username}`),
+      items: pending.map(p => `  ${p.username}`),
     });
 
     const btnBox = blessed.box({
       parent: box,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      height: 3,
+      top: 7,
+      left: 2,
+      right: 2,
+      height: 1,
     });
 
     const acceptBtn = blessed.button({
@@ -666,7 +707,7 @@ export function mainScreen(screen) {
     const rejectBtn = blessed.button({
       parent: btnBox,
       top: 0,
-      left: 16,
+      left: 17,
       width: 12,
       height: 1,
       content: '[Recusar]',
@@ -679,7 +720,7 @@ export function mainScreen(screen) {
     const closeBtn = blessed.button({
       parent: btnBox,
       top: 0,
-      left: 30,
+      left: 32,
       width: 10,
       height: 1,
       content: '[Voltar]',
@@ -707,14 +748,14 @@ export function mainScreen(screen) {
           refreshFriends();
           showModal(screen, {
             title: 'Sucesso',
-            message: `Voc\u00ea e ${target.username} s\u00e3o amigos agora!`,
+            message: `Você e ${target.username} são amigos agora!`,
             cancelText: 'Ok',
             onCancel: () => focusSidebar('conv'),
           });
         } catch {
           showModal(screen, {
             title: 'Erro',
-            message: 'N\u00e3o foi poss\u00edvel aceitar',
+            message: 'Não foi possível aceitar',
             cancelText: 'Ok',
             onCancel: () => focusSidebar('conv'),
           });
@@ -733,14 +774,14 @@ export function mainScreen(screen) {
           refreshFriends();
           showModal(screen, {
             title: 'Sucesso',
-            message: `Solicita\u00e7\u00e3o de ${target.username} recusada`,
+            message: `Solicitação de ${target.username} recusada`,
             cancelText: 'Ok',
             onCancel: () => focusSidebar('conv'),
           });
         } catch {
           showModal(screen, {
             title: 'Erro',
-            message: 'N\u00e3o foi poss\u00edvel recusar',
+            message: 'Não foi possível recusar',
             cancelText: 'Ok',
             onCancel: () => focusSidebar('conv'),
           });
@@ -764,8 +805,17 @@ export function mainScreen(screen) {
     }
 
     focusOrder.forEach(el => {
-      el.key(['tab', 'down'], focusNext);
-      el.key(['up'], focusPrev);
+      if (el === list) {
+        el.key(['tab'], focusNext);
+      } else {
+        el.key(['tab', 'down'], focusNext);
+        el.key(['up'], focusPrev);
+      }
+    });
+
+    [acceptBtn, rejectBtn, closeBtn].forEach(el => {
+      el.key(['right'], focusNext);
+      el.key(['left'], focusPrev);
     });
 
     acceptBtn.on('press', handleAccept);
@@ -804,7 +854,7 @@ export function mainScreen(screen) {
     );
   }
 
-  // --- Load initial data ---
+  // --- Load initial data and set periodic refresh ---
   (async () => {
     const user = state.get('user');
     if (user) {
@@ -821,6 +871,8 @@ export function mainScreen(screen) {
     }
   })();
 
+  const refreshInterval = setInterval(refreshFriends, 5000);
+
   // --- Element event handlers ---
   function handleConvSelect(item, idx) {
     const convs = state.get('conversations') || [];
@@ -828,7 +880,6 @@ export function mainScreen(screen) {
     if (conv) selectConversation(conv.id);
   }
   convList.on('select', handleConvSelect);
-  convList.on('action', handleConvSelect);
 
   function handleFriendSelect(item, idx) {
     const friends = state.get('friends') || [];
@@ -836,7 +887,6 @@ export function mainScreen(screen) {
     if (friend) addConversation(friend.username);
   }
   friendList.on('select', handleFriendSelect);
-  friendList.on('action', handleFriendSelect);
 
   chatInput.on('submit', handleSendMessage);
 
@@ -869,8 +919,7 @@ export function mainScreen(screen) {
     else if (activeFocus === 'sidebar-friends') focusChatInput();
   });
   addScreenKey('f1', () => {
-    if (activeFocus === 'sidebar-conv') focusSidebar('friends');
-    else focusSidebar('conv');
+    focusSidebar('friends');
   });
   addScreenKey('f2', searchUser);
   addScreenKey('f3', () => navigate('settings'));
@@ -889,6 +938,7 @@ export function mainScreen(screen) {
   screen.render();
 
   return () => {
+    clearInterval(refreshInterval);
     removeScreenKeys();
     if (ws) ws.disconnect();
     unsubs.forEach(fn => fn());
